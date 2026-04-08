@@ -1,5 +1,9 @@
 package org.skiBums;
 
+import org.skiBums.Structures.Building;
+import org.skiBums.Tiles.Tile;
+import org.skiBums.geometry.HexCoord;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -48,7 +52,15 @@ public class GameController {
     }
 
     public void gameLoop() {
-        Player currentPlayer;
+        int turnCount = 0;
+        while (!gameOver) {
+            for (Player currentPlayer : players) {
+                // TODO player rolls 7 logic
+                // First player rolls dice and everyone gets their resources
+                int playerRoll = currentPlayer.roll();
+                board.playerRoll(playerRoll);
+            }
+        }
     }
 
 

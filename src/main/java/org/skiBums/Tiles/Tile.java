@@ -10,18 +10,34 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public abstract class Tile {
+import static org.skiBums.ResourceType.DESERT;
+
+public class Tile {
 
     private HexCoord hexCoord;
     private int rollNumber;
+    private final ResourceType resourceType;
 
-    public abstract boolean isDesert();
 
-    abstract boolean isLand();
-
+    public Tile(ResourceType resourceType) {
+        this.resourceType = resourceType;
+    }
     public void setRollNumber(int rollNumber) {
         this.rollNumber = rollNumber;
     }
+
+    public int getRollNumber() {
+        return this.rollNumber;
+    }
+
+    public ResourceType getResourceType() {
+        return resourceType;
+    }
+
+    public boolean isDesert() {
+        return resourceType == DESERT;
+    }
+
 
     public void setHexCoord(HexCoord hexCoord) {
         this.hexCoord = hexCoord;
@@ -34,22 +50,22 @@ public abstract class Tile {
     public static Map<HexCoord, Tile> setUpTiles() {
         List<Tile> startTiles = new ArrayList<>();
         for (int i = 0; i < GameConstants.DESERT_TILE_AMOUNT; i++) {
-            startTiles.add(new LandTile(ResourceType.DESERT));
+            startTiles.add(new Tile(ResourceType.DESERT));
         }
         for (int i = 0; i < GameConstants.WOOD_TILE_AMOUNT; i++) {
-            startTiles.add(new LandTile(ResourceType.WOOD));
+            startTiles.add(new Tile(ResourceType.WOOD));
         }
         for (int i = 0; i < GameConstants.WHEAT_TILE_AMOUNT; i++) {
-            startTiles.add(new LandTile(ResourceType.WHEAT));
+            startTiles.add(new Tile(ResourceType.WHEAT));
         }
         for (int i = 0; i < GameConstants.SHEEP_TILE_AMOUNT; i++) {
-            startTiles.add(new LandTile(ResourceType.SHEEP));
+            startTiles.add(new Tile(ResourceType.SHEEP));
         }
         for (int i = 0; i < GameConstants.ROCK_TILE_AMOUNT; i++) {
-            startTiles.add(new LandTile(ResourceType.ROCK));
+            startTiles.add(new Tile(ResourceType.ROCK));
         }
         for (int i = 0; i < GameConstants.BRICK_TILE_AMOUNT; i++) {
-            startTiles.add(new LandTile(ResourceType.BRICK));
+            startTiles.add(new Tile(ResourceType.BRICK));
         }
         Collections.shuffle(startTiles);
 

@@ -1,5 +1,6 @@
 package org.skiBums;
 
+import org.skiBums.Cards.ResourceCard;
 import org.skiBums.Structures.Building;
 import org.skiBums.Structures.BuildingType;
 import org.skiBums.Structures.Road;
@@ -9,7 +10,7 @@ import org.skiBums.geometry.HexCoord;
 import java.util.*;
 
 public class Board {
-    private Map<HexCoord, Tile> landTiles = new HashMap<>();
+    private Map<HexCoord, Tile> tiles = new HashMap<>();
     private List<Vertex> vertices = List.of();
     private List<Edge> edges = List.of();
     private Map<Integer, List<Integer>> adjacentEdgeIdsByVertexId = Map.of();
@@ -19,11 +20,11 @@ public class Board {
 
     void addTile(Tile tile, HexCoord hex) {
         tile.setHexCoord(hex);
-        landTiles.put(hex, tile);
+        tiles.put(hex, tile);
     }
 
     public void setup() {
-        landTiles = new HashMap<>(Tile.setUpTiles());
+        tiles = new HashMap<>(Tile.setUpTiles());
         vertices = buildVertices(GameConstants.ALL_LAND_HEXES);
         edges = buildEdges(vertices, GameConstants.ALL_LAND_HEXES);
 
@@ -173,12 +174,28 @@ public class Board {
         }
     }
 
-    public Optional<Tile> tileAt(HexCoord hex) {
-        return Optional.ofNullable(landTiles.get(hex));
+    public List<Integer> vertexIdsTouchingHex(HexCoord hex) {
+        Map<String, Vertex> byTripleKey = new HashMap<>();
+        for (Vertex v : vertices) {
+            byTripleKey.put(vertexKey(v.corners()), v);
+        }
+        List<Integer> ids = new ArrayList<>(6);
+        for (int i = 0; i < 6; i++) {
+            Vertex v = vertexAtCorner(byTripleKey, hex, i);
+            if (v == null) {
+                throw new IllegalStateException("no vertex at corner " + i + " of hex " + hex);
+            }
+            ids.add(v.id());
+        }
+        return List.copyOf(ids);
     }
 
-    public Map<HexCoord, Tile> getLandTiles() {
-        return Collections.unmodifiableMap(landTiles);
+    public Optional<Tile> tileAt(HexCoord hex) {
+        return Optional.ofNullable(tiles.get(hex));
+    }
+
+    public Map<HexCoord, Tile> getTiles() {
+        return Collections.unmodifiableMap(tiles);
     }
 
     public List<Vertex> getVertices() {
@@ -334,6 +351,42 @@ public class Board {
 
     private boolean hasRoad(int edgeID) {
         return roads.containsKey(edgeID);
+    }
+
+    private Building getBuilding(int vertexId) {
+        return buildings.getOrDefault(vertexId, null);
+    }
+
+    private List<Tile> getRolledTiles(int rolledNumber) {
+        List<Tile> rolledTiles = new ArrayList<>();
+        for (Tile tile : getTiles().values()) {
+            if (tile.getRollNumber() == rolledNumber) {
+                rolledTiles.add(tile);
+            }
+        }
+        return rolledTiles;
+    }
+
+
+    private void givePlayersRolledTileResources(Tile tile) {
+        HexCoord hexCoord = tile.getHexCoord();
+        List<Integer> vertexIdsTouchingTile = this.vertexIdsTouchingHex(hexCoord);
+        for (int vertexID : vertexIdsTouchingTile){
+            Building currentBuilding = getBuilding(vertexID);
+            if (currentBuilding != null) {
+                if (!tile.isDesert()) {
+                    currentBuilding.owner().getResourcesFromBuilding(currentBuilding,tile.getResourceType());
+                }
+            }
+
+        }
+    }
+
+    public void playerRoll(int rolledNumber) {
+        List<Tile> rolledTiles = getRolledTiles(rolledNumber);
+        for (Tile tile : rolledTiles) {
+            givePlayersRolledTileResources(tile);
+        }
     }
 
 
