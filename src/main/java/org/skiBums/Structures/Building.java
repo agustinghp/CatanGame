@@ -2,4 +2,10 @@ package org.skiBums.Structures;
 
 import org.skiBums.Player;
 
-public record Building(Player owner, BuildingType type) {}
+import java.awt.*;
+
+public record Building(Player owner, BuildingType type) {
+    public Color getColor() {
+        return owner.getColor();
+    }
+}

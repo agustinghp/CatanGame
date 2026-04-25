@@ -1,6 +1,5 @@
 package org.skiBums;
 
-import org.skiBums.Cards.ResourceCard;
 import org.skiBums.Structures.Building;
 import org.skiBums.Structures.BuildingType;
 import org.skiBums.Structures.Road;
@@ -35,6 +34,7 @@ public class Board {
         setNumbers();
     }
 
+    // For AI
     public void randomStartingSettlement(Player player, Random random) {
         // For this function we will first choose a random vertex and then a random edge from that vertex.
         int vertexID = vertices.get(random.nextInt(vertices.size())).id();
@@ -47,6 +47,7 @@ public class Board {
         buildRoad(roadEdgeID, player);
     }
 
+    // For Human
     public boolean selectedStartingSettlement(Player player, int edgeID, int vertexID) {
         if (!settlementProperlySpaced(vertexID)) {
             return false;
@@ -202,6 +203,34 @@ public class Board {
         return vertices;
     }
 
+    public Map<Integer, Building> getBuildings() {
+        return Collections.unmodifiableMap(buildings);
+    }
+
+    public Map<Integer, Road> getRoads() {
+        return Collections.unmodifiableMap(roads);
+    }
+
+    public static record HexCornerPlacement(HexCoord hex, int cornerIndex) {}
+
+    // Returns a hexCoord with a cornerIndex to identify that vertex
+    public HexCornerPlacement hexCornerForVertex(Vertex v) {
+        String targetKey = vertexKey(v.corners());
+        for (HexCoord h : v.corners()) {
+            for (int i = 0; i < 6; i++) {
+                int prev = (i + 5) % 6;
+                List<HexCoord> tri = List.of(h, h.neighbor(prev), h.neighbor(i));
+                if (vertexKey(tri).equals(targetKey)) {
+                    return new HexCornerPlacement(h, i);
+                }
+            }
+        }
+        throw new IllegalStateException("No hex corner for vertex " + v.id());
+    }
+
+    public boolean canPlaceSettlement(int vertexId) {
+        return settlementProperlySpaced(vertexId);
+    }
 
     public boolean buildSettlementIfPossible(int vertexID, Player player) {
         if (!this.canBuildSettlement(vertexID, player)) {
@@ -219,20 +248,20 @@ public class Board {
     }
 
 
-    private boolean canBuildSettlement(int vertexID, Player player) {
+    public boolean canBuildSettlement(int vertexID, Player player) {
         return settlementConnectsWithRoad(vertexID, player) &&
                 settlementProperlySpaced(vertexID);
     }
 
     private boolean settlementProperlySpaced(int vertexID){
         // If there is already another settlement in place, return false
-        if (hasSettlement(vertexID)) {
+        if (hasBuilding(vertexID)) {
             return false;
         }
         boolean canBuildSettlement = true;
         List<Integer> verticesConnectingToVertex = this.getConnectedVertices(vertexID);
         for (Integer adjacentVertexID : verticesConnectingToVertex) {
-            if (hasSettlement(adjacentVertexID)) {
+            if (hasBuilding(adjacentVertexID)) {
                 canBuildSettlement = false;
             }
         }
@@ -280,11 +309,11 @@ public class Board {
     }
 
 
-    private boolean canBuildCity(int vertexID, Player player) {
+    public boolean canBuildCity(int vertexID, Player player) {
         return this.hasSettlement(vertexID) && hasPlayersBuilding(vertexID, player);
     }
 
-    private boolean canBuildRoad(int edgeID, Player player) {
+    public boolean canBuildRoad(int edgeID, Player player) {
         if (hasRoad(edgeID)) {
             return false;
         }
@@ -296,14 +325,6 @@ public class Board {
             return false;
         }
         return buildings.get(vertexID).type().equals(BuildingType.SETTLEMENT);
-    }
-
-
-    private boolean hasCity(int vertexID) {
-        if (!this.hasBuilding(vertexID)) {
-            return false;
-        }
-        return buildings.get(vertexID).type().equals(BuildingType.CITY);
     }
 
     private boolean hasBuilding(int vertexID) {
@@ -353,6 +374,10 @@ public class Board {
         return roads.containsKey(edgeID);
     }
 
+    public boolean hasRoadAt(int edgeId) {
+        return hasRoad(edgeId);
+    }
+
     private Building getBuilding(int vertexId) {
         return buildings.getOrDefault(vertexId, null);
     }
@@ -382,11 +407,30 @@ public class Board {
         }
     }
 
-    public void playerRoll(int rolledNumber) {
+    public Map<Player, Map<ResourceType, Integer>> playerRoll(int rolledNumber) {
         List<Tile> rolledTiles = getRolledTiles(rolledNumber);
+        Map<Player, Map<ResourceType, Integer>> payoutByPlayer = new LinkedHashMap<>();
         for (Tile tile : rolledTiles) {
             givePlayersRolledTileResources(tile);
+            if (tile.isDesert()) {
+                continue;
+            }
+            HexCoord hexCoord = tile.getHexCoord();
+            List<Integer> vertexIdsTouchingTile = this.vertexIdsTouchingHex(hexCoord);
+            for (int vertexID : vertexIdsTouchingTile) {
+                Building currentBuilding = getBuilding(vertexID);
+                if (currentBuilding == null) {
+                    continue;
+                }
+                Player owner = currentBuilding.owner();
+                int amount = currentBuilding.type() == BuildingType.CITY ? 2 : 1;
+                Map<ResourceType, Integer> resourceMap =
+                        payoutByPlayer.computeIfAbsent(owner, ignored -> new EnumMap<>(ResourceType.class));
+                resourceMap.put(tile.getResourceType(),
+                        resourceMap.getOrDefault(tile.getResourceType(), 0) + amount);
+            }
         }
+        return payoutByPlayer;
     }
 
 
